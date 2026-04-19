@@ -11,7 +11,7 @@ ThreadCache* ThreadCache::GetInstance()
 
 void* ThreadCache::Allocate(size_t size)
 {
-	assert(size < MAX_SIZE);
+	assert(size < MAX_BYTES);
 	size_t align_bytes = SizeClass::RoundUp(size);
 	size_t index = SizeClass::Index(size);
 
@@ -26,7 +26,7 @@ void* ThreadCache::Allocate(size_t size)
 
 void ThreadCache::Deallocate(void* ptr, size_t size)
 {
-	assert(size < MAX_SIZE);
+	assert(size < MAX_BYTES);
 	assert(ptr);
 	size_t align_bytes = SizeClass::RoundUp(size);
 	size_t index = SizeClass::Index(size);
@@ -36,5 +36,6 @@ void ThreadCache::Deallocate(void* ptr, size_t size)
 
 void* ThreadCache::FetchFromCentralCache(size_t index, size_t size)
 {
+
 	return nullptr;
 }
