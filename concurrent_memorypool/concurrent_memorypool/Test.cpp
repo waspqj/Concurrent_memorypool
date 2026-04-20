@@ -1,11 +1,11 @@
-#include "ObjectPool.hpp"
+//#include "ObjectPool.hpp"
+//using namespace ObjectPoolModule;
 #include "ThreadCache.h"
 #include <thread>
-using namespace ObjectPoolModule;
 
 void* my_malloc(size_t size)
 {
-	std::cout << std::this_thread::get_id() << ": " << ThreadCache::GetInstance() <<std::endl;
+	//std::cout << std::this_thread::get_id() << ": " << ThreadCache::GetInstance() <<std::endl;
 	return ThreadCache::GetInstance()->Allocate(size);
 }
 void my_free(void* ptr, size_t size)
@@ -25,15 +25,32 @@ void thread_func()
 void TestForTLSThreadCache()
 {
 	std::thread t1(thread_func);
-	t1.join();
 	std::thread t2(thread_func);
-    t2.join();
+	t1.join();
+	t2.join();
+}
+void TestEroment()
+{
+	std::cout << sizeof(int*) << std::endl;
+	std::cout << sizeof(PAGE_ID) << std::endl;
+	
 }
 
+void TestConcurrentMemoryPool()
+{
+	for (int i = 0; i < 1024; ++i)
+	{
+		my_malloc(1);
+		//std::cout << i << ": " << std::endl;
+	}
+	my_malloc(8);
+}
 int main()
 {
 	//TestObjectPool();
-	TestForTLSThreadCache();
-	ThreadCache::GetInstance();
+	//TestForTLSThreadCache();
+	//ThreadCache::GetInstance();
+
+	TestConcurrentMemoryPool();
 	return 0;
 }

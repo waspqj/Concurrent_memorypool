@@ -2,9 +2,20 @@
 
 #include <iostream>
 #include <vector>
+#include <unordered_map>
 #include <mutex>
+#include <algorithm>
+#include <windows.h>
 #include <assert.h>
 
+//#ifdef _WIN64
+//#pragma message("_WIN64 is defined")
+//#endif
+//#ifdef _WIN32
+//#pragma message("_WIN32 is defined")
+//#endif
+// 因为64位系统，_WIN64和_WIN32同时定义
+//我这里的条件编译为什么没有生效，我试过调换_WIN64和_WIN32的位置，结果都是编译第一条
 #ifdef _WIN64
 	typedef unsigned long long PAGE_ID;
 #elif _WIN32
@@ -14,9 +25,24 @@
 namespace CommonModule
 {
 	static const int FREE_LIST_BUCKETS_COUNT = 208;
+	static const int  NPAGE_MAX = 129;
 	static const int MAX_BYTES = (1024 << 10);
+    static const int PAGE_SHIFT = 13;
 
-	void*& NextObject(void* obj)
+	inline static void* SystemAlloc(size_t kpage)
+	{
+#ifdef _WIN32
+		void* ptr = VirtualAlloc(0, kpage * (1 << PAGE_SHIFT),
+			MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+#else
+		// brk mmap等
+#endif
+		if (ptr == nullptr)
+			throw std::bad_alloc();
+		return ptr;
+	}
+
+	static void*& NextObject(void* obj)
 	{
 		return *((void**)obj);
 	}
@@ -30,6 +56,16 @@ namespace CommonModule
 			
 			NextObject(obj) = _head;
 			_head = obj;
+			++_size;
+		}
+		void Push(void* start, void* end, size_t size)
+		{
+            assert(start);
+            assert(end);
+
+			NextObject(end) = _head;
+            _head = start;
+            _size += size;
 		}
 		void* Pop()
 		{
@@ -37,14 +73,44 @@ namespace CommonModule
 
 			void* obj = _head;
 			_head = NextObject(_head);
+            --_size;
+
 			return _head;
+		}
+		size_t Pop(size_t len, void*& start, void*& end)
+		{
+			assert(_size >= len);
+			start = _head;
+			end = start;
+			int i = 1;
+			while(i < len)
+			{
+				end = NextObject(end);
+				++i;
+			}
+			_head = NextObject(end);
+			NextObject(end) = nullptr;
+
+            _size -= len;
+			return i;
 		}
 		inline bool Empty()
 		{
 			return (_head == nullptr);
 		}
+		size_t _Size()
+		{
+			return _size;
+		}
+		size_t& _MaxSize()
+		{
+			return _maxSize;
+		}
 	private:
-		void* _head;
+		void* _head = nullptr;
+		size_t _size = 0;
+		//慢开始策略
+		size_t _maxSize = 1;
 	};
 
 	struct Span
@@ -52,12 +118,14 @@ namespace CommonModule
 		PAGE_ID _page_id = 0; //span起始页的id
 		size_t _n = 0; //页数
 
-		Span* _prev; // 双向链表的结构
-        Span* _next;
+		Span* _prev = nullptr; // 双向链表的结构
+        Span* _next = nullptr;
 
 		size_t _useCount = 0; // 分配给threadcache的小对象数量
 		void* _freelist = nullptr; // 切好的小块内存的链表
 
+		size_t _size = 0;
+		bool _isusing = false;
 	};
 
 	class SpanList
@@ -70,6 +138,14 @@ namespace CommonModule
             _head->_next = _head;
 		}
 
+		Span* Begin()
+		{
+			return _head->_next;
+		}
+        Span* End()
+        {
+            return _head;
+        }
         void Insert(Span* newspan, Span* pos)
         {
 			assert(newspan);
@@ -80,7 +156,10 @@ namespace CommonModule
 			newspan->_next = pos;
 			pos->_prev = newspan;
         }
-
+		void Pushfront(Span* span)
+		{
+			Insert(span, Begin());
+		}
 		void Pop(Span* span)
 		{
             assert(span);
@@ -91,6 +170,16 @@ namespace CommonModule
 			prev->_next = next;
             next->_prev = prev;
 		}
+		Span* Popfront()
+		{
+			Span* ret = Begin();
+			Pop(ret);
+			return ret;
+		}
+		bool Empty()
+        {
+            return (_head->_next == _head);
+        }
 	private:
 		Span* _head; // 双向链表头
 
@@ -135,6 +224,7 @@ namespace CommonModule
 			{
 				return _RoundUp(size, (1024 << 3));
 			}
+			return 0;
 		}
 
 		static inline size_t _Index(size_t size, size_t align_shift)
@@ -166,6 +256,33 @@ namespace CommonModule
 			{
 				return _Index(size - (1024 << 6), 13) + array[0] + array[1] + array[2] + array[3];
 			}
+			return 0;
+		}
+
+		static inline size_t GetBatchNum(size_t size)
+        { 
+			assert(size > 0);
+			size_t retNum = MAX_BYTES / size;
+
+			// 限制批量申请内存的个数
+			if (retNum < 2)
+				retNum = 2;
+			if(retNum > 512)
+                retNum = 512;
+
+			return retNum;
+        }	
+        static inline size_t GetnPage(size_t size)
+        {
+			size_t npage = (size * GetBatchNum(size)) >> PAGE_SHIFT;
+            if(npage == 0)
+                npage = 1;
+
+			return npage;
+        }
+		static inline PAGE_ID GetPageId(void* ptr)
+		{
+			return ((PAGE_ID)ptr >> PAGE_SHIFT);
 		}
 	};
 }

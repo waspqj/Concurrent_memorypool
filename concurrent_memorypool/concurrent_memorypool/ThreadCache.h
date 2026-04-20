@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.hpp"
+#include "CentralCache.h"
 
 using namespace CommonModule;
 
@@ -17,10 +18,13 @@ public:
 	void Deallocate(void* ptr, size_t size);
 	
 	void* FetchFromCentralCache(size_t index, size_t size);
+	void FreeListTooLong(FreeList&, size_t);
 
 	~ThreadCache(){}
 private:
 	std::vector<FreeList> _free_list;
+
+	
 };
 
 static _declspec(thread) ThreadCache* pTLSThreadCache = nullptr;
