@@ -15,14 +15,14 @@ namespace ObjectPoolModule
 		T* New()
 		{
 			T* obj = nullptr;
-			//é‡Šæ”¾é“¾è¡¨ä¸­çš„ç©ºé—´å¯ä»¥å¤ç”¨
+			//ÊÍ·ÅÁ´±íÖĞµÄ¿Õ¼ä¿ÉÒÔ¸´ÓÃ
 			if (_freelist)
 			{
 				obj = (T*)_freelist;
-				_freelist = *((void**)_freelist);//æŠŠfreelistæŒ‡å‘çš„æœªçŸ¥å¤§å°ç©ºé—´çš„å‰é¢æŒ‡é’ˆéƒ¨åˆ†æå–å‡ºæ¥ï¼ˆä¹Ÿå°±æ˜¯ä¸‹ä¸ªèŠ‚ç‚¹
+				_freelist = *((void**)_freelist);//°ÑfreelistÖ¸ÏòµÄÎ´Öª´óĞ¡¿Õ¼äµÄÇ°ÃæÖ¸Õë²¿·ÖÌáÈ¡³öÀ´£¨Ò²¾ÍÊÇÏÂ¸ö½Úµã
 			}
 			else {
-				//ç©ºé—´ä¸è¶³ï¼Œå…ˆæ‰©å®¹
+				//¿Õ¼ä²»×ã£¬ÏÈÀ©Èİ
 				if (_remaining_memory < _object_size)
 				{
 					_memory = (char*)malloc(ExpansionSize);
@@ -32,7 +32,7 @@ namespace ObjectPoolModule
 					}
 					_remaining_memory += ExpansionSize;
 				}
-				//åˆ†é…ç©ºé—´
+				//·ÖÅä¿Õ¼ä
 				obj = (T*)_memory;
 				_memory += _object_size;
 				_remaining_memory -= _object_size;
@@ -41,20 +41,20 @@ namespace ObjectPoolModule
 		}
 		void Delete(T* del)
 		{
-			//å¤´æ’æ³•
-			//æŠŠæ•°æ®ç©ºé—´çš„å‰4/8ä¸ªå­—èŠ‚å­˜æ”¾ä¸‹ä¸ªèŠ‚ç‚¹æŒ‡é’ˆ
-			//æŠŠvoid*å­˜è¿›å¼€å¤´
+			//Í·²å·¨
+			//°ÑÊı¾İ¿Õ¼äµÄÇ°4/8¸ö×Ö½Ú´æ·ÅÏÂ¸ö½ÚµãÖ¸Õë
+			//°Ñvoid*´æ½ø¿ªÍ·
 			*((void**)del) = _freelist;
 			_freelist = del;
 		}
 
 	private:
-		//void* _memory;void*ä¸çŸ¥é“å…¶å¤§å°ï¼Œä¸èƒ½ç”¨+-ç§»åŠ¨
-		char* _memory = nullptr; //æŒ‡å‘å†…å­˜æ± æœªè¢«ç”¨è¿‡çš„ç©ºé—´
-		int _remaining_memory = 0;//æœªè¢«ä½¿ç”¨çš„ç©ºé—´çš„å‰©ä½™å¤§å°
-		//int object_size = sizeof(T) Tå¤§å°å°äºvoid*æ—¶ï¼Œæ— æ³•æ’å…¥åµŒå…¥å¼é‡Šæ”¾é“¾è¡¨
-		int _object_size = sizeof(T) > sizeof(void*) ? sizeof(T) : sizeof(void*);//å•ä¸ªæ•°æ®å¼€è¾Ÿç©ºé—´å¤§å°
-		void* _freelist = nullptr;//æŒ‡å‘åµŒå…¥å¼é‡Šæ”¾é“¾è¡¨
+		//void* _memory;void*²»ÖªµÀÆä´óĞ¡£¬²»ÄÜÓÃ+-ÒÆ¶¯
+		char* _memory = nullptr; //Ö¸ÏòÄÚ´æ³ØÎ´±»ÓÃ¹ıµÄ¿Õ¼ä
+		int _remaining_memory = 0;//Î´±»Ê¹ÓÃµÄ¿Õ¼äµÄÊ£Óà´óĞ¡
+		//int object_size = sizeof(T) T´óĞ¡Ğ¡ÓÚvoid*Ê±£¬ÎŞ·¨²åÈëÇ¶ÈëÊ½ÊÍ·ÅÁ´±í
+		int _object_size = sizeof(T) > sizeof(void*) ? sizeof(T) : sizeof(void*);//µ¥¸öÊı¾İ¿ª±Ù¿Õ¼ä´óĞ¡
+		void* _freelist = nullptr;//Ö¸ÏòÇ¶ÈëÊ½ÊÍ·ÅÁ´±í
 	};
 
 		struct TreeNode
@@ -72,10 +72,10 @@ namespace ObjectPoolModule
 	
 		void TestObjectPool()
 		{
-			// ç”³è¯·é‡Šæ”¾çš„è½®æ¬¡
+			// ÉêÇëÊÍ·ÅµÄÂÖ´Î
 			const size_t Rounds = 5;
 	
-			// æ¯è½®ç”³è¯·é‡Šæ”¾å¤šå°‘æ¬¡
+			// Ã¿ÂÖÉêÇëÊÍ·Å¶àÉÙ´Î
 			const size_t N = 100000;
 	
 			std::vector<TreeNode*> v1;

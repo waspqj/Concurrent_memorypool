@@ -31,8 +31,8 @@ void ThreadCache::Deallocate(void* ptr, size_t size)
 	size_t index = SizeClass::Index(size);
 	 
 	_free_list[index].Push(ptr);
-	//å¦‚æœé“¾è¡¨é•¿åº¦å¤ªé•¿ï¼Œå½’è¿˜ä¸€äº›å¯¹è±¡ç»™ä¸­å¿ƒç¼“å­˜
-	if (_free_list[index]._MaxSize() < _free_list[index]._Size())
+	//Èç¹ûÁ´±í³¤¶ÈÌ«³¤£¬¹é»¹Ò»Ğ©¶ÔÏó¸øÖĞĞÄ»º´æ
+	if (_free_list[index]._MaxSize() <= _free_list[index]._Size())
 	{
 		FreeListTooLong(_free_list[index], index);
 	}
@@ -40,32 +40,33 @@ void ThreadCache::Deallocate(void* ptr, size_t size)
 
 void ThreadCache::FreeListTooLong(FreeList& list, size_t index)
 {
-	//æŠŠä¸€ä¸²å¯¹è±¡ä»freelisté‡Œæ‹¿å‡ºæ¥
+	//°ÑÒ»´®¶ÔÏó´ÓfreelistÀïÄÃ³öÀ´
 	void* start = nullptr;
     void* end = nullptr;
 	list.Pop(list._MaxSize(), start, end);
-	//æ‰¹é‡å½’è¿˜ç»™ä¸­å¿ƒç¼“å­˜
+	//ÅúÁ¿¹é»¹¸øÖĞĞÄ»º´æ
 	CentralCache::GetInstance()->ReleaseListToCentralCache(index, start);
 }
 
 void* ThreadCache::FetchFromCentralCache(size_t index, size_t size)
 {
-	//æ…¢å¼€å§‹æ¨¡å¼ï¼š                        å½“å‰æœ€å¤§æ•°é‡              æœ€å¤§ç”³è¯·ä¸Šé™
+	//Âı¿ªÊ¼Ä£Ê½£º                        µ±Ç°×î´óÊıÁ¿              ×î´óÉêÇëÉÏÏŞ
 	size_t batchNum = min(_free_list[index]._MaxSize(), SizeClass::GetBatchNum(size));
 	if (batchNum == _free_list[index]._MaxSize())
-	{    //æ…¢å¼€å§‹ï¼Œç¿»å€
-		_free_list[index]._MaxSize() <<= 1;
+	{    //Âı¿ªÊ¼£¬·­±¶
+		//_free_list[index]._MaxSize() <<= 1;
+        _free_list[index]._MaxSize()++;
 	}
-	//æ‰¹é‡ç”³è¯·
+	//ÅúÁ¿ÉêÇë
 	void* start = nullptr;
 	void* end = nullptr;
 	size_t actualNum = CentralCache::GetInstance()->FetchRangeobj(batchNum, size, start, end);
 	
-	// è¿”å›
+	// ·µ»Ø
 	assert(actualNum > 0);
-	if(actualNum == 1)//å¾—åˆ°ä¸€ä¸ªç›´æ¥è¿”å›
+	if(actualNum == 1)//µÃµ½Ò»¸öÖ±½Ó·µ»Ø
         return start;
-	else {            //å¾—åˆ°ä¸€æ‰¹ï¼Œè¿”å›å¤´ï¼Œå…¶ä»–é“¾å…¥é“¾è¡¨
+	else {            //µÃµ½Ò»Åú£¬·µ»ØÍ·£¬ÆäËûÁ´ÈëÁ´±í
 		_free_list[index].Push(NextObject(start), end, actualNum - 1);
 		NextObject(start) = nullptr;
 		return start;

@@ -14,8 +14,8 @@
 //#ifdef _WIN32
 //#pragma message("_WIN32 is defined")
 //#endif
-// å› ä¸º64ä½ç³»ç»Ÿï¼Œ_WIN64å’Œ_WIN32åŒæ—¶å®šä¹‰
-//æˆ‘è¿™é‡Œçš„æ¡ä»¶ç¼–è¯‘ä¸ºä»€ä¹ˆæ²¡æœ‰ç”Ÿæ•ˆï¼Œæˆ‘è¯•è¿‡è°ƒæ¢_WIN64å’Œ_WIN32çš„ä½ç½®ï¼Œç»“æœéƒ½æ˜¯ç¼–è¯‘ç¬¬ä¸€æ¡
+// ÒòÎª64Î»ÏµÍ³£¬_WIN64ºÍ_WIN32Í¬Ê±¶¨Òå
+//ÎÒÕâÀïµÄÌõ¼ş±àÒëÎªÊ²Ã´Ã»ÓĞÉúĞ§£¬ÎÒÊÔ¹ıµ÷»»_WIN64ºÍ_WIN32µÄÎ»ÖÃ£¬½á¹û¶¼ÊÇ±àÒëµÚÒ»Ìõ
 #ifdef _WIN64
 	typedef unsigned long long PAGE_ID;
 #elif _WIN32
@@ -25,9 +25,9 @@
 namespace CommonModule
 {
 	static const int FREE_LIST_BUCKETS_COUNT = 208;
-	static const int  NPAGE_MAX = 129;
-	static const int MAX_BYTES = (1024 << 10);
-    static const int PAGE_SHIFT = 13;
+	static const int  NPAGE_MAX = 129; // 128Ò³
+	static const int MAX_BYTES = (256 << 10);// 256×Ö½Ú
+    static const int PAGE_SHIFT = 13; // Ò³´óĞ¡,8kb, 8*1024 , 2^(3*10)
 
 	inline static void* SystemAlloc(size_t kpage)
 	{
@@ -35,7 +35,7 @@ namespace CommonModule
 		void* ptr = VirtualAlloc(0, kpage * (1 << PAGE_SHIFT),
 			MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 #else
-		// brk mmapç­‰
+		// brk mmapµÈ
 #endif
 		if (ptr == nullptr)
 			throw std::bad_alloc();
@@ -75,7 +75,7 @@ namespace CommonModule
 			_head = NextObject(_head);
             --_size;
 
-			return _head;
+			return obj;
 		}
 		size_t Pop(size_t len, void*& start, void*& end)
 		{
@@ -109,20 +109,20 @@ namespace CommonModule
 	private:
 		void* _head = nullptr;
 		size_t _size = 0;
-		//æ…¢å¼€å§‹ç­–ç•¥
+		//Âı¿ªÊ¼²ßÂÔ
 		size_t _maxSize = 1;
 	};
 
 	struct Span
 	{ 
-		PAGE_ID _page_id = 0; //spanèµ·å§‹é¡µçš„id
-		size_t _n = 0; //é¡µæ•°
+		PAGE_ID _page_id = 0; //spanÆğÊ¼Ò³µÄid
+		size_t _n = 0; //Ò³Êı
 
-		Span* _prev = nullptr; // åŒå‘é“¾è¡¨çš„ç»“æ„
+		Span* _prev = nullptr; // Ë«ÏòÁ´±íµÄ½á¹¹
         Span* _next = nullptr;
 
-		size_t _useCount = 0; // åˆ†é…ç»™threadcacheçš„å°å¯¹è±¡æ•°é‡
-		void* _freelist = nullptr; // åˆ‡å¥½çš„å°å—å†…å­˜çš„é“¾è¡¨
+		size_t _useCount = 0; // ·ÖÅä¸øthreadcacheµÄĞ¡¶ÔÏóÊıÁ¿
+		void* _freelist = nullptr; // ÇĞºÃµÄĞ¡¿éÄÚ´æµÄÁ´±í
 
 		size_t _size = 0;
 		bool _isusing = false;
@@ -181,19 +181,19 @@ namespace CommonModule
             return (_head->_next == _head);
         }
 	private:
-		Span* _head; // åŒå‘é“¾è¡¨å¤´
+		Span* _head; // Ë«ÏòÁ´±íÍ·
 
 	public:
-		std::mutex _mtx;//æ¡¶é”
+		std::mutex _mtx;//Í°Ëø
 	};
 
 
-	// æ•´ä½“æ§åˆ¶åœ¨æœ€å¤š10%å·¦å³çš„å†…ç¢â½šæµªè´¹
-	 // [1,128] 8byteå¯¹â»¬ freelist[0,16)
-	 // [128+1,1024] 16byteå¯¹â»¬ freelist[16,72)
-	 // [1024+1,81024] 128byteå¯¹â»¬ freelist[72,128)
-	//  [8*1024+1,641024] 1024byteå¯¹â»¬ freelist[128,184)
-	//  [64*1024+1,256*1024] 8*1024byteå¯¹â»¬ freelist[184,208)
+	// ÕûÌå¿ØÖÆÔÚ×î¶à10%×óÓÒµÄÄÚËé?ÀË·Ñ
+	 // [1,128] 8byte¶Ô? freelist[0,16)
+	 // [128+1,1024] 16byte¶Ô? freelist[16,72)
+	 // [1024+1,81024] 128byte¶Ô? freelist[72,128)
+	//  [8*1024+1,641024] 1024byte¶Ô? freelist[128,184)
+	//  [64*1024+1,256*1024] 8*1024byte¶Ô? freelist[184,208)
 	class SizeClass
 	{
 	public:
@@ -203,7 +203,6 @@ namespace CommonModule
 		}
 		static inline size_t RoundUp(size_t size)
 		{
-
 			if (size <= 128)
 			{
 				return _RoundUp(size, 8);
@@ -224,7 +223,9 @@ namespace CommonModule
 			{
 				return _RoundUp(size, (1024 << 3));
 			}
-			return 0;
+			else {
+				assert(false);
+			}
 		}
 
 		static inline size_t _Index(size_t size, size_t align_shift)
@@ -264,7 +265,7 @@ namespace CommonModule
 			assert(size > 0);
 			size_t retNum = MAX_BYTES / size;
 
-			// é™åˆ¶æ‰¹é‡ç”³è¯·å†…å­˜çš„ä¸ªæ•°
+			// ÏŞÖÆÅúÁ¿ÉêÇëÄÚ´æµÄ¸öÊı
 			if (retNum < 2)
 				retNum = 2;
 			if(retNum > 512)
