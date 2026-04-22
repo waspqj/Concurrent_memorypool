@@ -43,3 +43,6 @@ bin-release/
 *.tlog/unsuccessfulbuild
 *.exe
 *.enc
+
+*.ifc
+*.command
