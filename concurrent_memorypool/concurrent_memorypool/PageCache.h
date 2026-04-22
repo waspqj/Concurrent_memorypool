@@ -27,4 +27,5 @@ public:
 	std::mutex _mtx;
 
 	static PageCache _instance;
+	ObjectPool<Span> spanPool;
 };

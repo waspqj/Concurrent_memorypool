@@ -96,6 +96,18 @@ void* ThreadCache::FetchFromCentralCache(size_t index, size_t size)
 	void* end = nullptr;
 	size_t actualNum = CentralCache::GetInstance()->FetchRangeobj(batchNum, size, start, end);
 	
+	//检测actualNum是否正确
+	int cnt = 1;
+	void* cur = start;
+    while (cur != end)
+    {
+		++cnt;
+        cur = NextObject(cur);
+    }
+	if (cnt != actualNum)
+	{
+		int a = 0;
+	}
 	// 返回
 	assert(actualNum > 0);
 	if(actualNum == 1)//得到一个直接返回

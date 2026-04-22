@@ -1,12 +1,21 @@
 #pragma once
 
 #include <iostream>
+
 #include <vector>
 #include <unordered_map>
-#include <mutex>
-#include <algorithm>
-#include <windows.h>
+
 #include <assert.h>
+#include <mutex>
+
+#include <algorithm>
+
+#include <windows.h>
+#include <atomic>
+#include <thread>
+
+#include "ObjectPool.hpp"
+
 
 //#ifdef _WIN64
 //#pragma message("_WIN64 is defined")
@@ -16,14 +25,19 @@
 //#endif
 // 因为64位系统，_WIN64和_WIN32同时定义
 //我这里的条件编译为什么没有生效，我试过调换_WIN64和_WIN32的位置，结果都是编译第一条
+
+namespace CommonModule
+{
+	using std::cout;
+	using std::endl;
+	using namespace ObjectPoolModule;
+
 #ifdef _WIN64
 	typedef unsigned long long PAGE_ID;
 #elif _WIN32
 	typedef size_t PAGE_ID;
 #endif
 
-namespace CommonModule
-{
 	static const int FREE_LIST_BUCKETS_COUNT = 208;
 	static const int  NPAGE_MAX = 129; // 128页
 	static const int MAX_BYTES = (256 << 10);// 256kb，32页
@@ -142,7 +156,7 @@ namespace CommonModule
 	public:
 		SpanList()
 		{
-			_head = new Span();
+			_head = new Span;
 			_head->_prev = _head;
             _head->_next = _head;
 		}
