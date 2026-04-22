@@ -10,12 +10,11 @@ void* my_malloc(size_t size)
 	std::cout << ptr << std::endl;
 	return ptr;
 }
-void my_free(void* ptr, size_t size)
+void my_free(void* ptr)
 {
 	std::cout << std::this_thread::get_id() << "~~~~~~: " << ptr<< std::endl;
-	ThreadCache::GetInstance()->Deallocate(ptr, size);
+	ThreadCache::GetInstance()->Deallocate(ptr);
 }
-
 void thread_func1()
 {
 	std::vector<void* > ps;
@@ -25,7 +24,7 @@ void thread_func1()
 		ps.push_back(p);
 	}
     for (auto p : ps)
-        my_free(p, 8);
+        my_free(p);
 }
 void thread_func2()
 {
@@ -37,7 +36,7 @@ void thread_func2()
 		//Sleep(3);
 	}
     for (auto p : ps)
-        my_free(p, 16);
+        my_free(p);
 }
 void TestForTLSThreadCache()
 {
@@ -63,7 +62,7 @@ void TestConcurrentAlloc()
 		ps.push_back(ptr);
 	}
 	for(auto p : ps)
-        my_free(p, 8);
+        my_free(p);
 	//my_malloc(8);
 }
 void TestConcurrentFree()
@@ -76,24 +75,32 @@ void TestConcurrentFree()
 	void* p6 = my_malloc(5);
 	void* p7 = my_malloc(5);
 	//void* p8 = my_malloc(5);
-
-	my_free(p1, 1);
-	my_free(p2, 4);
-	my_free(p3, 8);
-	my_free(p4, 3);
-	my_free(p5, 6);
-	my_free(p6, 5);
-	my_free(p7, 5);
+	my_free(p1);
+	my_free(p2);
+	my_free(p3);
+	my_free(p4);
+	my_free(p5);
+	my_free(p6);
+	my_free(p7);
 	//my_free(p8, 5);
-
 }
+
+void TestBigAlloc()
+{
+	void* p1 = my_malloc(MAX_BYTES + 1024);
+    my_free(p1);
+												//	 << PAGE_SHIFT >> PAGE_SHIFT 只对于pageid和void*转换有效因为pageid从0开始	
+	void *p2 = my_malloc(NPAGE_MAX << PAGE_SHIFT);//这里其实不是想象的129页，而是258页
+    my_free(p2);
+}
+
 int main()
 {
 	//TestObjectPool();
-	TestForTLSThreadCache();
+	//TestForTLSThreadCache();
 	//ThreadCache::GetInstance();
-
 	//TestConcurrentAlloc();
 	//TestConcurrentFree();
+	TestBigAlloc();
 	return 0;
 }

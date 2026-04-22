@@ -11,31 +11,65 @@ ThreadCache* ThreadCache::GetInstance()
 
 void* ThreadCache::Allocate(size_t size)
 {
-	assert(size < MAX_BYTES);
 	size_t align_bytes = SizeClass::RoundUp(size);
-	size_t index = SizeClass::Index(size);
-
-	if (!_free_list[index].Empty())
+	if (size > MAX_BYTES)
 	{
-		return _free_list[index].Pop();
+		return ThreadCache::BigAllocate(align_bytes);
 	}
-	else {
-		return FetchFromCentralCache(index, align_bytes);
+	else 
+	{
+		size_t index = SizeClass::Index(size);
+		if (!_free_list[index].Empty())
+		{
+			return _free_list[index].Pop();
+		}
+		else {
+			return FetchFromCentralCache(index, align_bytes);
+		}
 	}
 }
-
-void ThreadCache::Deallocate(void* ptr, size_t size)
+void* ThreadCache::BigAllocate(size_t size)
 {
-	assert(size < MAX_BYTES);
+	std::cout<< "直接向PageCache申请"<<std::endl;
+	//直接向PageCache申请
+	PageCache::GetInstance()->_mtx.lock();
+	Span *span = PageCache::GetInstance()->NewSpan(SizeClass::GetnPage(size));
+	PageCache::GetInstance()->_mtx.unlock();
+
+	span ->_isusing = true;
+	span -> _size = size;
+
+	return (void*)(span->_page_id << PAGE_SHIFT);
+}
+
+void ThreadCache::Deallocate(void* ptr)
+{
 	assert(ptr);
-	size_t index = SizeClass::Index(size);
-	 
-	_free_list[index].Push(ptr);
-	//如果链表长度太长，归还一些对象给中心缓存
-	if (_free_list[index]._MaxSize() <= _free_list[index]._Size())
+	Span* span = PageCache::GetInstance()->GetSpan(SizeClass::GetPageId(ptr));
+    size_t size = span -> _size;
+
+	if (size > MAX_BYTES)
 	{
-		FreeListTooLong(_free_list[index], index);
+		ThreadCache::BigDeallocate(span);
 	}
+	else 
+	{
+		size_t index = SizeClass::Index(size);
+		_free_list[index].Push(ptr);
+		//如果链表长度太长，归还一些对象给中心缓存
+		if (_free_list[index]._MaxSize() <= _free_list[index]._Size())
+		{
+			FreeListTooLong(_free_list[index], index);
+		}
+	}
+}
+void ThreadCache::BigDeallocate(Span* span)
+{
+	std::cout<< "BigDeallocate"<<std::endl;
+	
+	PageCache::GetInstance()->_mtx.lock();
+	PageCache::GetInstance()->ReleaseSpanToPageCache(span);
+	PageCache::GetInstance()->_mtx.unlock();
 }
 
 void ThreadCache::FreeListTooLong(FreeList& list, size_t index)

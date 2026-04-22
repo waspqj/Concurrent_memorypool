@@ -26,9 +26,9 @@ namespace CommonModule
 {
 	static const int FREE_LIST_BUCKETS_COUNT = 208;
 	static const int  NPAGE_MAX = 129; // 128页
-	static const int MAX_BYTES = (256 << 10);// 256字节
-    static const int PAGE_SHIFT = 13; // 页大小,8kb, 8*1024 , 2^(3*10)
-
+	static const int MAX_BYTES = (256 << 10);// 256kb，32页
+    static const int PAGE_SHIFT = 13; //(PAGE_id and void*) 页大小,8kb, 8*1024 , 2^(3*10)
+										
 	inline static void* SystemAlloc(size_t kpage)
 	{
 #ifdef _WIN32
@@ -40,6 +40,15 @@ namespace CommonModule
 		if (ptr == nullptr)
 			throw std::bad_alloc();
 		return ptr;
+	}
+    static void* SystemFree(void* ptr)
+	{
+#ifdef _WIN32
+		VirtualFree(ptr, 0, MEM_RELEASE);
+#else
+		// brk mmap等
+#endif
+		return nullptr;
 	}
 
 	static void*& NextObject(void* obj)
@@ -124,8 +133,8 @@ namespace CommonModule
 		size_t _useCount = 0; // 分配给threadcache的小对象数量
 		void* _freelist = nullptr; // 切好的小块内存的链表
 
-		size_t _size = 0;
-		bool _isusing = false;
+		size_t _size = 0; // 小对象大小
+		bool _isusing = false; // span是否正在使用：真正的含义是是否分配到threadcache中
 	};
 
 	class SpanList
@@ -204,28 +213,17 @@ namespace CommonModule
 		static inline size_t RoundUp(size_t size)
 		{
 			if (size <= 128)
-			{
 				return _RoundUp(size, 8);
-			}
 			else if (size <= 1024)
-			{
 				return _RoundUp(size, 16);
-			}
 			else if (size <= (1024 << 3))
-			{
 				return _RoundUp(size, 128);
-			}
 			else if (size <= (1024 << 6))
-			{
 				return _RoundUp(size, 1024);
-			}
 			else if (size <= (1024 << 8))
-			{
 				return _RoundUp(size, (1024 << 3));
-			}
-			else {
-				assert(false);
-			}
+			else // 大对象按页对齐
+				return _RoundUp(size, ((1 << PAGE_SHIFT) - 1));
 		}
 
 		static inline size_t _Index(size_t size, size_t align_shift)
@@ -266,6 +264,8 @@ namespace CommonModule
 			size_t retNum = MAX_BYTES / size;
 
 			// 限制批量申请内存的个数
+			if(retNum == 0)
+                retNum = 1;
 			if (retNum < 2)
 				retNum = 2;
 			if(retNum > 512)

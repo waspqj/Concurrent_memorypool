@@ -24,6 +24,7 @@ Span* CentralCache::FetchOneSpan(SpanList& list, size_t size)
 	//没有可用span, 获取一个span
 	pos = PageCache::GetInstance()->NewSpan(SizeClass::GetnPage(size));
     pos->_size = size;
+	pos->_isusing = true;
 
 	if (PageCache::GetInstance()->_mtx.try_lock() == true)
 	{
@@ -76,7 +77,7 @@ size_t CentralCache::FetchRangeobj(size_t batchNum, size_t size, void*& begin, v
 		++i;
 	}
     pos->_useCount += i;
-	pos->_isusing = true;
+	//pos->_isusing = true;
 	pos->_freelist = NextObject(end);
 	NextObject(end) = nullptr;
 
