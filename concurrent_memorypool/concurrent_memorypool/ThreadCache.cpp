@@ -34,10 +34,9 @@ void* ThreadCache::BigAllocate(size_t size)
 	//直接向PageCache申请
 	PageCache::GetInstance()->_mtx.lock();
 	Span *span = PageCache::GetInstance()->NewSpan(SizeClass::GetnPage(size));
+	span->_isusing = true;
+	span->_size = size;
 	PageCache::GetInstance()->_mtx.unlock();
-
-	span ->_isusing = true;
-	span -> _size = size;
 
 	return (void*)(span->_page_id << PAGE_SHIFT);
 }
@@ -96,18 +95,18 @@ void* ThreadCache::FetchFromCentralCache(size_t index, size_t size)
 	void* end = nullptr;
 	size_t actualNum = CentralCache::GetInstance()->FetchRangeobj(batchNum, size, start, end);
 	
-	//检测actualNum是否正确
-	int cnt = 1;
-	void* cur = start;
-    while (cur != end)
-    {
-		++cnt;
-        cur = NextObject(cur);
-    }
-	if (cnt != actualNum)
-	{
-		int a = 0;
-	}
+	////检测actualNum是否正确
+	//int cnt = 1;
+	//void* cur = start;
+ //   while (cur != end)
+ //   {
+	//	++cnt;
+ //       cur = NextObject(cur);
+ //   }
+	//if (cnt != actualNum)
+	//{
+	//	int a = 0;
+	//}
 	// 返回
 	assert(actualNum > 0);
 	if(actualNum == 1)//得到一个直接返回

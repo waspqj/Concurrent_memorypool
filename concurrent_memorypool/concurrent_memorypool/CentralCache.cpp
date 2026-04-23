@@ -115,7 +115,7 @@ void CentralCache::ReleaseListToCentralCache(size_t index, void* start)
 			span->_freelist = nullptr;
 			span->_next = nullptr;
 			span->_prev = nullptr;
-			span->_isusing = false;
+			//span->_isusing = false;不能在这里，必须和span的释放加锁绑定
 
 			if (_span_lists[index]._mtx.try_lock() == true)
 			{
